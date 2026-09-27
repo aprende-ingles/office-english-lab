@@ -248,7 +248,7 @@ const state = {
   activityIndex: Number(localStorage.getItem("oel-activity") || 0),
   progress: JSON.parse(localStorage.getItem("oel-progress") || "{}"),
   match: { selectedTerm: null, matched: [], feedback: null },
-  order: [],
+  order: {},
   contrast: localStorage.getItem("oel-contrast") === "1"
 };
 
@@ -308,6 +308,86 @@ function activitiesFor(unit) {
   return state.library === "book" ? bookActivities : workbookActivities;
 }
 
+function rotateOptions(correct, pool, seed = 0) {
+  const unique = [...new Set(pool.filter((item) => item !== correct))];
+  const options = [correct, ...unique].slice(0, 4);
+  while (options.length < 4) options.push(correct);
+  const position = seed % options.length;
+  const answer = options.indexOf(correct);
+  const moved = options.splice(answer, 1)[0];
+  options.splice(position, 0, moved);
+  return { options, answer: position };
+}
+
+function sourceSentences(unit) {
+  const raw = [unit.order, unit.fill.sentence, unit.listen.text, unit.reading.text];
+  return raw.flatMap((text) => String(text).split(/(?<=[.!?])\s+/).map((sentence) => sentence.trim()).filter(Boolean));
+}
+
+function sourceTargets(unit) {
+  const targets = [...sourceSentences(unit)];
+  unit.vocab.forEach(([term, definition]) => targets.push(`${term} means ${definition}.`));
+  return [...new Set(targets)].slice(0, 10);
+}
+
+function sourcePairs(unit) {
+  const pairs = unit.vocab.map(([term, definition]) => ({ term, definition }));
+  pairs.push(
+    { term: "Reading snapshot", definition: `${unit.reading.heading}: ${unit.reading.text}` },
+    { term: "Listening snapshot", definition: unit.listen.text },
+    { term: "Sentence model", definition: unit.order },
+    { term: "Complete the source phrase", definition: unit.fill.sentence.replace("___", unit.fill.answer) }
+  );
+  return pairs.slice(0, 10);
+}
+
+function tenPack(unit) {
+  const vocab = unit.vocab.map(([term, definition]) => ({ term, definition }));
+  const definitions = vocab.map((item) => item.definition);
+  const terms = vocab.map((item) => item.term);
+  const nineVocab = Array.from({ length: 9 }, (_, index) => vocab[index % vocab.length]);
+  const sevenVocab = Array.from({ length: 7 }, (_, index) => vocab[index % vocab.length]);
+  const reading = [unit.reading];
+  nineVocab.forEach((item, index) => {
+    const choice = rotateOptions(item.definition, definitions, index + 1);
+    reading.push({ question: `Which source definition matches “${item.term}”?`, options: choice.options, answer: choice.answer });
+  });
+  const listening = [unit.listen];
+  nineVocab.forEach((item, index) => {
+    const choice = rotateOptions(item.term, terms, index + 1);
+    listening.push({ text: `${item.term}. ${item.definition}.`, question: "Which term did you hear?", options: choice.options, answer: choice.answer });
+  });
+  const tf = [...unit.tf.map(([statement, answer]) => ({ statement, answer }))];
+  sevenVocab.forEach((item, index) => {
+    if (index % 2 === 0) tf.push({ statement: `${item.term} means ${item.definition}.`, answer: true });
+    else tf.push({ statement: `${item.term} means ${vocab[(index + 1) % vocab.length].definition}.`, answer: false });
+  });
+  const quiz = [unit.quiz];
+  nineVocab.forEach((item, index) => {
+    const choice = rotateOptions(item.definition, definitions, index + 1);
+    quiz.push({ q: `Which definition belongs to “${item.term}”?`, options: choice.options, answer: choice.answer });
+  });
+  const fill = [unit.fill];
+  nineVocab.map((item) => ({ sentence: `The source definition “${item.definition}” matches the term: ___`, answer: item.term })).forEach((item) => fill.push(item));
+  const targets = sourceTargets(unit);
+  while (targets.length < 10) targets.push(`${vocab[targets.length % vocab.length].term} means ${vocab[targets.length % vocab.length].definition}.`);
+  const speaking = [{ prompt: unit.writing.prompt, model: unit.order }];
+  nineVocab.forEach((item) => speaking.push({ prompt: `Use the source term “${item.term}” in a spoken sentence and explain: ${item.definition}.`, model: `${item.term}. ${item.definition}.` }));
+  const writing = [{ prompt: unit.writing.prompt, checklist: unit.writing.checklist }];
+  nineVocab.forEach((item) => writing.push({ prompt: `Write a short workplace sentence using “${item.term}” and include this source meaning: ${item.definition}.`, checklist: ["I used the source term.", "I wrote a complete sentence."] }));
+  return {
+    reading: reading.slice(0, 10),
+    listening: listening.slice(0, 10),
+    tf: tf.slice(0, 10),
+    quiz: quiz.slice(0, 10),
+    fill: fill.slice(0, 10),
+    order: targets.slice(0, 10),
+    speaking: speaking.slice(0, 10),
+    writing: writing.slice(0, 10),
+    match: sourcePairs(unit)
+  };
+}
+
 function setView(view) {
   const allowed = ["home", "library", "progress", "help"];
   state.view = allowed.includes(view) ? view : "home";
@@ -328,7 +408,7 @@ function openLibrary(kind, id = state.unitId) {
   state.unitId = Number(id);
   state.activityIndex = 0;
   state.match = { selectedTerm: null, matched: [], feedback: null };
-  state.order = [];
+  state.order = {};
   saveState();
   render();
   setView("library");
@@ -360,7 +440,7 @@ function renderUnitList() {
       <span class="unit-check">${isComplete(state.library, unit.id) ? "✓" : ""}</span>
     </button>`).join("");
   list.querySelectorAll("[data-unit]").forEach((button) => button.addEventListener("click", () => {
-    state.unitId = Number(button.dataset.unit); state.activityIndex = 0; state.match = { selectedTerm: null, matched: [], feedback: null }; state.order = []; saveState(); render();
+    state.unitId = Number(button.dataset.unit); state.activityIndex = 0; state.match = { selectedTerm: null, matched: [], feedback: null }; state.order = {}; saveState(); render();
   }));
 }
 
@@ -402,7 +482,7 @@ function render() {
       <div id="activity-content"></div>
     </section>
     <div class="completion-banner"><p><strong>Micro-logro:</strong> completa las cinco actividades de esta unidad para marcar esta ruta.</p><button type="button" class="complete-button ${isComplete() ? "is-complete" : ""}" id="complete-unit">${isComplete() ? "✓ Unidad completada" : "Marcar unidad"}</button></div>`;
-  document.querySelectorAll("[data-activity]").forEach((button) => button.addEventListener("click", () => { state.activityIndex = Number(button.dataset.activity); state.match = { selectedTerm: null, matched: [], feedback: null }; state.order = []; saveState(); render(); }));
+  document.querySelectorAll("[data-activity]").forEach((button) => button.addEventListener("click", () => { state.activityIndex = Number(button.dataset.activity); state.match = { selectedTerm: null, matched: [], feedback: null }; state.order = {}; saveState(); render(); }));
   $("#complete-unit").addEventListener("click", () => { const key = progressKey(); if (state.progress[key]) delete state.progress[key]; else state.progress[key] = true; saveState(); render(); showToast(state.progress[key] ? "Unidad marcada como completada." : "Unidad devuelta a progreso."); });
   renderActivity(unit, activities[state.activityIndex]);
 }
@@ -416,50 +496,51 @@ function activityFrame(activity, body) {
 function renderActivity(unit, activity) {
   const host = $("#activity-content");
   if (!host) return;
+  const pack = tenPack(unit);
+  const exerciseHeader = (label) => `<div class="exercise-count"><strong>${label}</strong><span>10 ejercicios en este apartado</span></div>`;
   if (activity.kind === "reading") {
-    host.innerHTML = activityFrame({ title: "Reading radar", instruction: "Read the source snapshot and choose the answer." }, `<div class="reading-card"><strong>${esc(unit.reading.heading)}</strong><p>${esc(unit.reading.text)}</p></div><div class="question-box"><p>${esc(unit.reading.question)}</p><div class="option-grid">${unit.reading.options.map((option, index) => `<button type="button" class="option-button" data-read-option="${index}">${esc(option)}</button>`).join("")}</div><div class="feedback" id="read-feedback"></div></div>`);
-    document.querySelectorAll("[data-read-option]").forEach((button) => button.addEventListener("click", () => { const good = Number(button.dataset.readOption) === unit.reading.answer; document.querySelectorAll("[data-read-option]").forEach((b) => b.classList.remove("is-correct", "is-wrong")); button.classList.add(good ? "is-correct" : "is-wrong"); answerFeedback($("#read-feedback"), good); }));
+    host.innerHTML = activityFrame({ title: "Reading radar", instruction: "Lee la fuente de la unidad y completa los 10 retos de comprensión y vocabulario." }, `<div class="reading-card"><strong>${esc(unit.reading.heading)}</strong><p>${esc(unit.reading.text)}</p></div>${exerciseHeader("Reading · comprensión") }<div class="exercise-stack">${pack.reading.map((item, itemIndex) => `<article class="question-box exercise-card"><div class="exercise-number">${String(itemIndex + 1).padStart(2, "0")}</div><p>${esc(item.question)}</p><div class="option-grid">${item.options.map((option, index) => `<button type="button" class="option-button" data-read-item="${itemIndex}" data-read-option="${index}">${esc(option)}</button>`).join("")}</div><div class="feedback" id="read-feedback-${itemIndex}"></div></article>`).join("")}</div>`);
+    document.querySelectorAll("[data-read-option]").forEach((button) => button.addEventListener("click", () => { const itemIndex = Number(button.dataset.readItem); const item = pack.reading[itemIndex]; const good = Number(button.dataset.readOption) === item.answer; document.querySelectorAll(`[data-read-item="${itemIndex}"]`).forEach((b) => b.classList.remove("is-correct", "is-wrong")); button.classList.add(good ? "is-correct" : "is-wrong"); answerFeedback($(`#read-feedback-${itemIndex}`), good); }));
   }
   if (activity.kind === "listen") {
-    host.innerHTML = activityFrame({ title: "Listening lab", instruction: "Pulsa el audio, escucha la frase y responde." }, `<div class="listen-box"><p>La voz usa text-to-speech del navegador para practicar el lenguaje de la unidad. No sustituye al audio original del libro.</p><button type="button" class="speak-button" id="speak-main">▶ Escuchar en inglés</button></div><div class="question-box"><p>${esc(unit.listen.question)}</p><div class="option-grid">${unit.listen.options.map((option, index) => `<button type="button" class="option-button" data-listen-option="${index}">${esc(option)}</button>`).join("")}</div><div class="feedback" id="listen-feedback"></div></div>`);
+    host.innerHTML = activityFrame({ title: "Listening lab", instruction: "Pulsa cada audio, escucha la frase y responde a los 10 retos." }, `<div class="listen-box"><p>La voz usa text-to-speech del navegador para practicar el lenguaje de la unidad. Las frases proceden del contenido de la unidad.</p><button type="button" class="speak-button" id="speak-main">▶ Escuchar la muestra</button></div>${exerciseHeader("Listening · escucha activa") }<div class="exercise-stack">${pack.listening.map((item, itemIndex) => `<article class="question-box exercise-card"><div class="exercise-card-top"><div class="exercise-number">${String(itemIndex + 1).padStart(2, "0")}</div><button type="button" class="speak-button small" data-speak-listen="${itemIndex}">▶ Hear it</button></div><p>${esc(item.question)}</p><div class="option-grid">${item.options.map((option, index) => `<button type="button" class="option-button" data-listen-item="${itemIndex}" data-listen-option="${index}">${esc(option)}</button>`).join("")}</div><div class="feedback" id="listen-feedback-${itemIndex}"></div></article>`).join("")}</div>`);
     $("#speak-main").addEventListener("click", () => speak(unit.listen.text));
-    document.querySelectorAll("[data-listen-option]").forEach((button) => button.addEventListener("click", () => { const good = Number(button.dataset.listenOption) === unit.listen.answer; document.querySelectorAll("[data-listen-option]").forEach((b) => b.classList.remove("is-correct", "is-wrong")); button.classList.add(good ? "is-correct" : "is-wrong"); answerFeedback($("#listen-feedback"), good); }));
+    document.querySelectorAll("[data-speak-listen]").forEach((button) => button.addEventListener("click", () => speak(pack.listening[Number(button.dataset.speakListen)].text)));
+    document.querySelectorAll("[data-listen-option]").forEach((button) => button.addEventListener("click", () => { const itemIndex = Number(button.dataset.listenItem); const item = pack.listening[itemIndex]; const good = Number(button.dataset.listenOption) === item.answer; document.querySelectorAll(`[data-listen-item="${itemIndex}"]`).forEach((b) => b.classList.remove("is-correct", "is-wrong")); button.classList.add(good ? "is-correct" : "is-wrong"); answerFeedback($(`#listen-feedback-${itemIndex}`), good); }));
   }
   if (activity.kind === "tf") {
-    host.innerHTML = activityFrame({ title: "True or false", instruction: "Decide first. Después comprueba el resultado y vuelve a leer la fuente." }, `<div class="question-box"><ol class="mini-list">${unit.tf.map((item, index) => `<li><div><p>${esc(item[0])}</p><div class="option-grid"><button class="choice-button" type="button" data-tf="${index}" data-answer="true">True</button><button class="choice-button" type="button" data-tf="${index}" data-answer="false">False</button></div><div class="feedback" id="tf-feedback-${index}"></div></div></li>`).join("")}</ol></div>`);
-    document.querySelectorAll("[data-tf]").forEach((button) => button.addEventListener("click", () => { const index = Number(button.dataset.tf); const good = String(unit.tf[index][1]) === button.dataset.answer; document.querySelectorAll(`[data-tf="${index}"]`).forEach((b) => b.classList.remove("is-correct", "is-wrong")); button.classList.add(good ? "is-correct" : "is-wrong"); answerFeedback($(`#tf-feedback-${index}`), good, "Correct. That matches the source language.", "Not quite. Look again at the unit wording."); }));
+    host.innerHTML = activityFrame({ title: "True or false", instruction: "Decide primero, comprueba el resultado y vuelve a leer la fuente." }, `${exerciseHeader("True / False · 10 afirmaciones") }<div class="exercise-stack">${pack.tf.map((item, index) => `<article class="question-box exercise-card"><div class="exercise-number">${String(index + 1).padStart(2, "0")}</div><p>${esc(item.statement)}</p><div class="option-grid"><button class="choice-button" type="button" data-tf="${index}" data-answer="true">True</button><button class="choice-button" type="button" data-tf="${index}" data-answer="false">False</button></div><div class="feedback" id="tf-feedback-${index}"></div></article>`).join("")}</div>`);
+    document.querySelectorAll("[data-tf]").forEach((button) => button.addEventListener("click", () => { const index = Number(button.dataset.tf); const good = pack.tf[index].answer === (button.dataset.answer === "true"); document.querySelectorAll(`[data-tf="${index}"]`).forEach((b) => b.classList.remove("is-correct", "is-wrong")); button.classList.add(good ? "is-correct" : "is-wrong"); answerFeedback($(`#tf-feedback-${index}`), good, "Correct. That matches the source language.", "Not quite. Look again at the unit wording."); }));
   }
   if (activity.kind === "match") {
-    host.innerHTML = activityFrame({ title: "Match game", instruction: "Selecciona un término y después su definición. Completa todas las parejas." }, `<div class="match-grid"><div class="match-column"><span class="match-column-label">Terms</span>${unit.vocab.slice(0, 5).map((pair, index) => `<button class="match-button ${state.match.matched.includes(index) ? "is-matched" : ""} ${state.match.selectedTerm === index ? "is-selected" : ""}" type="button" data-term="${index}">${esc(pair[0])}</button>`).join("")}</div><div class="match-column"><span class="match-column-label">Definitions</span>${unit.vocab.slice(0, 5).map((pair, index) => `<button class="match-button ${state.match.matched.includes(index) ? "is-matched" : ""}" type="button" data-definition="${index}">${esc(pair[1])}</button>`).sort(() => .5 - Math.random()).join("")}</div></div><div class="feedback" id="match-feedback"></div>`);
-    if (state.match.feedback) answerFeedback($("#match-feedback"), state.match.feedback.good, state.match.feedback.text, state.match.feedback.text);
-    document.querySelectorAll("[data-term]").forEach((button) => button.addEventListener("click", () => { if (!state.match.matched.includes(Number(button.dataset.term))) { state.match.selectedTerm = Number(button.dataset.term); renderActivity(unit, activity); } }));
-    document.querySelectorAll("[data-definition]").forEach((button) => button.addEventListener("click", () => { const definitionIndex = Number(button.dataset.definition); if (state.match.selectedTerm === null || state.match.matched.includes(definitionIndex)) return; const good = state.match.selectedTerm === definitionIndex; if (good) state.match.matched.push(definitionIndex); state.match.feedback = { good, text: good ? (state.match.matched.length === 5 ? "Todas las parejas están correctas. ¡Match complete!" : "Correct match! Sigue con la siguiente.") : "Try again: find the definition that belongs to the selected term." }; state.match.selectedTerm = null; renderActivity(unit, activity); }));
+    const pairs = pack.match; const definitions = pairs.map((pair) => pair.definition);
+    host.innerHTML = activityFrame({ title: "Match game", instruction: "En cada mini-ronda, une el término con la definición que aparece en la fuente." }, `${exerciseHeader("Match · 10 mini-rondas") }<div class="exercise-stack">${pairs.map((pair, itemIndex) => { const choice = rotateOptions(pair.definition, definitions, itemIndex + 1); return `<article class="question-box exercise-card match-round"><div class="exercise-number">${String(itemIndex + 1).padStart(2, "0")}</div><p class="match-term">${esc(pair.term)}</p><div class="option-grid">${choice.options.map((option, optionIndex) => `<button class="option-button" type="button" data-match-item="${itemIndex}" data-match-option="${optionIndex}" data-match-answer="${choice.answer}">${esc(option)}</button>`).join("")}</div><div class="feedback" id="match-feedback-${itemIndex}"></div></article>`; }).join("")}</div>`);
+    document.querySelectorAll("[data-match-option]").forEach((button) => button.addEventListener("click", () => { const itemIndex = Number(button.dataset.matchItem); const good = Number(button.dataset.matchOption) === Number(button.dataset.matchAnswer); document.querySelectorAll(`[data-match-item="${itemIndex}"]`).forEach((b) => b.classList.remove("is-correct", "is-wrong")); button.classList.add(good ? "is-correct" : "is-wrong"); answerFeedback($(`#match-feedback-${itemIndex}`), good); }));
   }
   if (activity.kind === "fill") {
-    host.innerHTML = activityFrame({ title: "Complete the sentence", instruction: "Escribe la palabra o expresión exacta de la unidad." }, `<div class="question-box"><p>${esc(unit.fill.sentence)}</p><div class="inline-form"><input class="text-input" id="fill-answer" type="text" autocomplete="off" aria-label="Tu respuesta"><button class="check-button" id="fill-check" type="button">Comprobar</button></div><div class="feedback" id="fill-feedback"></div></div>`);
-    $("#fill-check").addEventListener("click", () => answerFeedback($("#fill-feedback"), normalize($("#fill-answer").value) === normalize(unit.fill.answer), "Correct!", `La respuesta de esta actividad es: ${unit.fill.answer}.`));
+    host.innerHTML = activityFrame({ title: "Complete the sentence", instruction: "Escribe la palabra o expresión exacta de la unidad en los 10 huecos." }, `${exerciseHeader("Complete · 10 huecos") }<div class="exercise-stack">${pack.fill.map((item, index) => `<article class="question-box exercise-card"><div class="exercise-number">${String(index + 1).padStart(2, "0")}</div><p>${esc(item.sentence)}</p><div class="inline-form"><input class="text-input" id="fill-answer-${index}" type="text" autocomplete="off" aria-label="Tu respuesta ${index + 1}"><button class="check-button" data-fill-check="${index}" type="button">Comprobar</button></div><div class="feedback" id="fill-feedback-${index}"></div></article>`).join("")}</div>`);
+    document.querySelectorAll("[data-fill-check]").forEach((button) => button.addEventListener("click", () => { const index = Number(button.dataset.fillCheck); const good = normalize($(`#fill-answer-${index}`).value) === normalize(pack.fill[index].answer); answerFeedback($(`#fill-feedback-${index}`), good, "Correct!", `La respuesta de esta actividad es: ${pack.fill[index].answer}.`); }));
   }
   if (activity.kind === "quiz") {
-    host.innerHTML = activityFrame({ title: "Quick quiz", instruction: "Una pregunta, cuatro opciones, cero aburrimiento." }, `<div class="question-box"><p>${esc(unit.quiz.q)}</p><div class="option-grid">${unit.quiz.options.map((option, index) => `<button type="button" class="option-button" data-quiz-option="${index}">${esc(option)}</button>`).join("")}</div><div class="feedback" id="quiz-feedback"></div></div>`);
-    document.querySelectorAll("[data-quiz-option]").forEach((button) => button.addEventListener("click", () => { const good = Number(button.dataset.quizOption) === unit.quiz.answer; document.querySelectorAll("[data-quiz-option]").forEach((b) => b.classList.remove("is-correct", "is-wrong")); button.classList.add(good ? "is-correct" : "is-wrong"); answerFeedback($("#quiz-feedback"), good); }));
+    host.innerHTML = activityFrame({ title: "Quick quiz", instruction: "Diez preguntas, cuatro opciones y feedback inmediato." }, `${exerciseHeader("Quick quiz · 10 preguntas") }<div class="exercise-stack">${pack.quiz.map((item, index) => `<article class="question-box exercise-card"><div class="exercise-number">${String(index + 1).padStart(2, "0")}</div><p>${esc(item.q)}</p><div class="option-grid">${item.options.map((option, optionIndex) => `<button type="button" class="option-button" data-quiz-item="${index}" data-quiz-option="${optionIndex}">${esc(option)}</button>`).join("")}</div><div class="feedback" id="quiz-feedback-${index}"></div></article>`).join("")}</div>`);
+    document.querySelectorAll("[data-quiz-option]").forEach((button) => button.addEventListener("click", () => { const itemIndex = Number(button.dataset.quizItem); const good = Number(button.dataset.quizOption) === pack.quiz[itemIndex].answer; document.querySelectorAll(`[data-quiz-item="${itemIndex}"]`).forEach((b) => b.classList.remove("is-correct", "is-wrong")); button.classList.add(good ? "is-correct" : "is-wrong"); answerFeedback($(`#quiz-feedback-${itemIndex}`), good); }));
   }
   if (activity.kind === "order") {
-    const words = unit.order.replace(/[.?!]/g, "").split(" ");
-    if (!state.order.length) state.order = [];
-    host.innerHTML = activityFrame({ title: state.library === "book" ? "Sentence lab" : "Grammar order", instruction: "Pulsa los bloques en el orden correcto. Puedes reiniciar cuando quieras." }, `<div class="tile-bank">${words.map((word, index) => `<button type="button" class="word-tile" data-word-index="${index}" ${state.order.includes(index) ? "disabled" : ""}>${esc(word)}</button>`).join("")}</div><div class="sentence-builder">${state.order.length ? state.order.map((index) => `<span class="built-word">${esc(words[index])}</span>`).join("") : "<span class='empty-hint'>Your sentence will appear here.</span>"}</div><div class="inline-form"><button class="check-button" type="button" id="order-check">Comprobar</button><button class="text-button" type="button" id="order-reset">Reiniciar</button></div><div class="feedback" id="order-feedback"></div>`);
-    document.querySelectorAll("[data-word-index]").forEach((button) => button.addEventListener("click", () => { state.order.push(Number(button.dataset.wordIndex)); renderActivity(unit, activity); }));
-    $("#order-reset").addEventListener("click", () => { state.order = []; renderActivity(unit, activity); });
-    $("#order-check").addEventListener("click", () => { const built = state.order.map((index) => words[index]).join(" "); answerFeedback($("#order-feedback"), normalize(built) === normalize(unit.order), "Perfect sentence order!", `Try again. Target: ${unit.order}`); });
+    const scramble = (sentence, seed) => { const words = sentence.replace(/[.?!]/g, "").split(/\s+/).filter(Boolean); if (words.length < 2) return words; const shift = (seed % (words.length - 1)) + 1; return words.slice(shift).concat(words.slice(0, shift)); };
+    host.innerHTML = activityFrame({ title: state.library === "book" ? "Sentence lab" : "Grammar order", instruction: "Pulsa los bloques en el orden correcto. Cada tarjeta usa una frase de la unidad." }, `${exerciseHeader("Sentence order · 10 frases") }<div class="exercise-stack">${pack.order.map((target, index) => { const words = scramble(target, index); const selected = Array.isArray(state.order[index]) ? state.order[index] : []; return `<article class="question-box exercise-card"><div class="exercise-number">${String(index + 1).padStart(2, "0")}</div><div class="tile-bank">${words.map((word, wordIndex) => `<button type="button" class="word-tile" data-order-item="${index}" data-order-word="${wordIndex}" ${selected.includes(wordIndex) ? "disabled" : ""}>${esc(word)}</button>`).join("")}</div><div class="sentence-builder">${selected.length ? selected.map((wordIndex) => `<span class="built-word">${esc(words[wordIndex])}</span>`).join("") : "<span class='empty-hint'>Your sentence will appear here.</span>"}</div><div class="inline-form"><button class="check-button" data-order-check="${index}" type="button">Comprobar</button><button class="text-button" data-order-reset="${index}" type="button">Reiniciar</button></div><div class="feedback" id="order-feedback-${index}"></div></article>`; }).join("")}</div>`);
+    document.querySelectorAll("[data-order-word]").forEach((button) => button.addEventListener("click", () => { const itemIndex = Number(button.dataset.orderItem); if (!Array.isArray(state.order[itemIndex])) state.order[itemIndex] = []; state.order[itemIndex].push(Number(button.dataset.orderWord)); renderActivity(unit, activity); }));
+    document.querySelectorAll("[data-order-reset]").forEach((button) => button.addEventListener("click", () => { state.order[Number(button.dataset.orderReset)] = []; renderActivity(unit, activity); }));
+    document.querySelectorAll("[data-order-check]").forEach((button) => button.addEventListener("click", () => { const index = Number(button.dataset.orderCheck); const words = scramble(pack.order[index], index); const selected = Array.isArray(state.order[index]) ? state.order[index] : []; const built = selected.map((wordIndex) => words[wordIndex]).join(" "); answerFeedback($(`#order-feedback-${index}`), normalize(built) === normalize(pack.order[index]), "Perfect sentence order!", `Try again. Target: ${pack.order[index]}`); }));
   }
   if (activity.kind === "speak") {
-    host.innerHTML = activityFrame({ title: "Speaking studio", instruction: "Escucha, repite y practica la mini-situación en voz alta." }, `<div class="reading-card"><strong>Role-play prompt</strong><p>${esc(unit.writing.prompt)}</p></div><div class="listen-box"><p>Usa el botón como modelo de pronunciación para una frase clave de la unidad:</p><button type="button" class="speak-button" id="speak-role">▶ Hear a model</button></div><button class="check-button" type="button" id="speaking-done">He practicado en voz alta</button><div class="feedback" id="speaking-feedback"></div>`);
-    $("#speak-role").addEventListener("click", () => speak(unit.order));
-    $("#speaking-done").addEventListener("click", () => answerFeedback($("#speaking-feedback"), true, "Great. Speaking practice logged for this session."));
+    host.innerHTML = activityFrame({ title: "Speaking studio", instruction: "Escucha, repite y practica las 10 mini-situaciones en voz alta." }, `${exerciseHeader("Speaking · 10 retos") }<div class="exercise-stack">${pack.speaking.map((item, index) => `<article class="question-box exercise-card"><div class="exercise-card-top"><div class="exercise-number">${String(index + 1).padStart(2, "0")}</div><button type="button" class="speak-button small" data-speak-model="${index}">▶ Hear a model</button></div><p>${esc(item.prompt)}</p><button class="check-button" type="button" data-speaking-done="${index}">He practicado en voz alta</button><div class="feedback" id="speaking-feedback-${index}"></div></article>`).join("")}</div>`);
+    document.querySelectorAll("[data-speak-model]").forEach((button) => button.addEventListener("click", () => speak(pack.speaking[Number(button.dataset.speakModel)].model)));
+    document.querySelectorAll("[data-speaking-done]").forEach((button) => button.addEventListener("click", () => answerFeedback($(`#speaking-feedback-${button.dataset.speakingDone}`), true, "Great. Speaking practice logged for this session.")));
   }
   if (activity.kind === "writing") {
-    const saved = localStorage.getItem(`oel-writing-${unit.id}`) || "";
-    host.innerHTML = activityFrame({ title: "Writing studio", instruction: "Escribe con tus palabras usando el lenguaje de la unidad. Aquí no hay una única respuesta." }, `<div class="reading-card"><strong>Task</strong><p>${esc(unit.writing.prompt)}</p></div><textarea class="writing-area" id="writing-area" placeholder="Start writing in English...">${esc(saved)}</textarea><div class="writing-tools"><span class="word-count" id="word-count">0 words</span><button class="check-button" id="save-writing" type="button">Guardar borrador</button></div><div class="checklist">${unit.writing.checklist.map((item, index) => `<label><input type="checkbox" data-writing-check="${index}"> <span>${esc(item)}</span></label>`).join("")}</div><div class="feedback" id="writing-feedback"></div>`);
-    const area = $("#writing-area"); const count = () => { const words = area.value.trim() ? area.value.trim().split(/\s+/).length : 0; $("#word-count").textContent = `${words} words`; }; count(); area.addEventListener("input", count); $("#save-writing").addEventListener("click", () => { localStorage.setItem(`oel-writing-${unit.id}`, area.value); answerFeedback($("#writing-feedback"), true, "Draft saved in this browser."); });
+    host.innerHTML = activityFrame({ title: "Writing studio", instruction: "Escribe con tus palabras usando el lenguaje de la unidad. Cada tarjeta admite un borrador independiente." }, `${exerciseHeader("Writing · 10 propuestas") }<div class="exercise-stack">${pack.writing.map((item, index) => { const saved = localStorage.getItem(`oel-writing-${state.library}-${unit.id}-${index}`) || ""; return `<article class="question-box exercise-card"><div class="exercise-number">${String(index + 1).padStart(2, "0")}</div><p>${esc(item.prompt)}</p><textarea class="writing-area" id="writing-area-${index}" placeholder="Start writing in English...">${esc(saved)}</textarea><div class="writing-tools"><span class="word-count" id="word-count-${index}">0 words</span><button class="check-button" data-save-writing="${index}" type="button">Guardar borrador</button></div><div class="checklist">${item.checklist.map((check, checkIndex) => `<label><input type="checkbox" data-writing-check="${index}-${checkIndex}"> <span>${esc(check)}</span></label>`).join("")}</div><div class="feedback" id="writing-feedback-${index}"></div></article>`; }).join("")}</div>`);
+    document.querySelectorAll('[id^="writing-area-"]').forEach((area) => { const index = area.id.split("-").pop(); const count = () => { const words = area.value.trim() ? area.value.trim().split(/\s+/).length : 0; $(`#word-count-${index}`).textContent = `${words} words`; }; count(); area.addEventListener("input", count); });
+    document.querySelectorAll("[data-save-writing]").forEach((button) => button.addEventListener("click", () => { const index = Number(button.dataset.saveWriting); localStorage.setItem(`oel-writing-${state.library}-${unit.id}-${index}`, $(`#writing-area-${index}`).value); answerFeedback($(`#writing-feedback-${index}`), true, "Draft saved in this browser."); }));
   }
 }
 
@@ -471,7 +552,7 @@ document.querySelectorAll(".book-tab").forEach((tab) => tab.addEventListener("cl
 document.querySelectorAll("[data-open-library]").forEach((button) => button.addEventListener("click", () => openLibrary(button.dataset.openLibrary)));
 $(".brand").addEventListener("click", (event) => { event.preventDefault(); setView("home"); window.scrollTo({ top: 0, behavior: "smooth" }); });
 $("#continue-button").addEventListener("click", () => { setView("library"); document.querySelector(".workspace-grid").scrollIntoView({ behavior: "smooth", block: "start" }); });
-$("#random-button").addEventListener("click", () => { state.unitId = units[Math.floor(Math.random() * units.length)].id; state.activityIndex = 0; state.match = { selectedTerm: null, matched: [], feedback: null }; state.order = []; saveState(); render(); setView("library"); document.querySelector(".workspace-grid").scrollIntoView({ behavior: "smooth", block: "start" }); });
+$("#random-button").addEventListener("click", () => { state.unitId = units[Math.floor(Math.random() * units.length)].id; state.activityIndex = 0; state.match = { selectedTerm: null, matched: [], feedback: null }; state.order = {}; saveState(); render(); setView("library"); document.querySelector(".workspace-grid").scrollIntoView({ behavior: "smooth", block: "start" }); });
 $("#contrast-toggle").addEventListener("click", () => { state.contrast = !state.contrast; document.body.classList.toggle("high-contrast", state.contrast); localStorage.setItem("oel-contrast", state.contrast ? "1" : "0"); });
 $("#reset-button").addEventListener("click", () => { if (!window.confirm("¿Reiniciar el progreso de las 20 unidades en este navegador?")) return; state.progress = {}; localStorage.removeItem("oel-progress"); render(); showToast("Progreso reiniciado."); });
 

@@ -15,4 +15,4 @@ Sube el contenido completo de esta carpeta (`index.html`, `styles.css` y `app.js
 
 ## Criterio de contenido
 
-La interfaz mantiene separados Student's Book y Workbook, conserva las 20 unidades y muestra las páginas fuente en cada recorrido. Las actividades interactivas son prácticas construidas con el vocabulario, textos, situaciones y expresiones de la unidad; no se han añadido temas de administración ajenos al material facilitado.
+La interfaz mantiene separados Student's Book y Workbook, conserva las 20 unidades y muestra las páginas fuente en cada recorrido. Cada apartado ofrece 10 ejercicios independientes. Las actividades interactivas se generan únicamente con el vocabulario, textos, situaciones, definiciones y expresiones de la unidad; no se han añadido temas de administración ajenos al material facilitado.

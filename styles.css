@@ -157,6 +157,18 @@ h2 { color: var(--navy); font-size: 1.7rem; letter-spacing: -.045em; margin-bott
 .question-box { border: 1px solid var(--line); border-radius: 14px; padding: 15px; }
 .question-box p { font-weight: 800; color: var(--navy); margin-bottom: 12px; }
 .option-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+.exercise-count { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 7px 0 13px; padding: 11px 13px; border-radius: 12px; background: #eef5f3; color: var(--navy); }
+.exercise-count strong { font-size: .83rem; }
+.exercise-count span { color: #5c727b; font-size: .77rem; }
+.exercise-stack { display: grid; gap: 12px; }
+.exercise-card { position: relative; padding-left: 54px; }
+.exercise-number { position: absolute; left: 15px; top: 15px; display: grid; place-items: center; width: 27px; height: 27px; border-radius: 9px; background: var(--navy); color: white; font-size: .7rem; font-weight: 900; }
+.exercise-card-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.exercise-card-top .exercise-number { position: static; flex: 0 0 27px; }
+.speak-button.small { padding: 8px 11px; font-size: .74rem; }
+.match-term { color: var(--coral) !important; font-size: 1rem; }
+.match-round .option-grid { grid-template-columns: 1fr; }
+.exercise-card .feedback { min-height: 18px; }
 .option-button, .choice-button { border: 1px solid var(--line); border-radius: 11px; padding: 11px 12px; background: var(--white); color: var(--ink); text-align: left; font-size: .82rem; transition: .18s ease; }
 .option-button:hover, .choice-button:hover { border-color: var(--navy-2); background: #f4faf7; }
 .option-button.is-correct, .choice-button.is-correct { background: var(--mint-2); border-color: #7dceb8; color: var(--navy); }
@@ -234,6 +246,8 @@ body.high-contrast .hero-card, body.high-contrast .book-tab.is-active, body.high
   .activity-title-row { flex-direction: column; }
   .source-label { text-align: left; }
   .option-grid, .match-grid { grid-template-columns: 1fr; }
+  .exercise-count { align-items: flex-start; flex-direction: column; gap: 3px; }
+  .exercise-card { padding-left: 49px; }
   .footer-right { flex-direction: column; text-align: left; gap: 8px; }
   .progress-unit-grid { grid-template-columns: 1fr; }
 }
