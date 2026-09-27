@@ -18,6 +18,13 @@
           <small>Administración &amp; Finanzas · 1º Superior</small>
         </span>
       </a>
+      <nav class="main-nav" aria-label="Navegación principal" role="tablist">
+        <button class="nav-tab is-active" data-view="home" role="tab" aria-selected="true" type="button">Inicio</button>
+        <button class="nav-tab" data-view="library" data-library-nav="book" role="tab" aria-selected="false" type="button">Student’s Book</button>
+        <button class="nav-tab" data-view="library" data-library-nav="workbook" role="tab" aria-selected="false" type="button">Workbook</button>
+        <button class="nav-tab" data-view="progress" role="tab" aria-selected="false" type="button">Mi progreso</button>
+        <button class="nav-tab" data-view="help" role="tab" aria-selected="false" type="button">Cómo usarla</button>
+      </nav>
       <div class="top-actions">
         <span class="streak" id="streak-badge">0 días de práctica</span>
         <button class="icon-button" id="contrast-toggle" type="button" aria-label="Cambiar contraste" title="Cambiar contraste">◐</button>
@@ -25,47 +32,85 @@
     </header>
 
     <main id="top">
-      <section class="hero wrap">
-        <div class="hero-copy">
-          <p class="eyebrow">TECHNICAL ENGLISH · LEARN BY DOING</p>
-          <h1>Tu inglés de oficina,<br><em>en movimiento.</em></h1>
-          <p class="hero-lead">Practica el vocabulario, las situaciones y las destrezas del material de clase con retos cortos: lee, escucha, decide, ordena, escribe y vuelve a intentarlo.</p>
-          <div class="hero-actions">
-            <button class="primary-button" id="continue-button" type="button">Continuar práctica <span aria-hidden="true">→</span></button>
-            <button class="text-button" id="random-button" type="button">Sorpréndeme con una unidad</button>
+      <section class="page-view is-visible" data-view-panel="home" aria-labelledby="home-title">
+        <div class="hero wrap">
+          <div class="hero-copy">
+            <p class="eyebrow">TECHNICAL ENGLISH · LEARN BY DOING</p>
+            <h1 id="home-title">Tu inglés de oficina,<br><em>en movimiento.</em></h1>
+            <p class="hero-lead">Practica el vocabulario, las situaciones y las destrezas del material de clase con retos cortos: lee, escucha, decide, ordena, escribe y vuelve a intentarlo.</p>
+            <div class="hero-actions">
+              <button class="primary-button" id="continue-button" type="button">Continuar práctica <span aria-hidden="true">→</span></button>
+              <button class="text-button" id="random-button" type="button">Sorpréndeme con una unidad</button>
+            </div>
+          </div>
+          <div class="hero-card" aria-label="Resumen del curso">
+            <div class="hero-card-top"><span class="live-dot"></span> LAB MODE <span class="hero-card-note">sin registros</span></div>
+            <div class="orbital orbital-one"></div><div class="orbital orbital-two"></div>
+            <div class="hero-stat"><strong>20</strong><span>unidades por libro</span></div>
+            <div class="hero-stat"><strong id="completed-stat">0%</strong><span>progreso actual</span></div>
+            <div class="hero-card-footer">Student’s Book + Workbook · guarda tu avance en este navegador</div>
           </div>
         </div>
-        <div class="hero-card" aria-label="Resumen del curso">
-          <div class="hero-card-top"><span class="live-dot"></span> LAB MODE <span class="hero-card-note">sin registros</span></div>
-          <div class="orbital orbital-one"></div><div class="orbital orbital-two"></div>
-          <div class="hero-stat"><strong>20</strong><span>unidades</span></div>
-          <div class="hero-stat"><strong id="completed-stat">0%</strong><span>progreso local</span></div>
-          <div class="hero-card-footer">Student’s Book + Workbook</div>
-        </div>
-      </section>
-
-      <section class="wrap library-switcher" aria-label="Elegir libro">
-        <div class="section-heading">
-          <div><p class="eyebrow">DOS RECORRIDOS · SIN MEZCLAR</p><h2>Elige tu material</h2></div>
-          <p class="source-note">Cada reto lleva su referencia de libro y páginas.</p>
-        </div>
-        <div class="book-tabs" role="tablist" aria-label="Libros">
-          <button class="book-tab is-active" data-library="book" role="tab" aria-selected="true" type="button"><span class="tab-number">01</span><span><strong>Student’s Book</strong><small>Reading · Listening · Speaking</small></span><span class="tab-arrow">↗</span></button>
-          <button class="book-tab" data-library="workbook" role="tab" aria-selected="false" type="button"><span class="tab-number">02</span><span><strong>Workbook</strong><small>Vocabulary · Grammar · Writing</small></span><span class="tab-arrow">↗</span></button>
-        </div>
-      </section>
-
-      <section class="wrap workspace-grid">
-        <aside class="unit-sidebar" aria-label="Unidades">
-          <div class="sidebar-header"><div><p class="eyebrow">ROADMAP</p><h2 id="sidebar-title">Student’s Book</h2></div><span class="unit-count">20</span></div>
-          <div class="progress-bar"><span id="overall-progress"></span></div>
-          <p class="progress-caption"><span id="progress-caption">0 de 20 unidades iniciadas</span><span>local</span></p>
-          <nav id="unit-list" class="unit-list" aria-label="Lista de unidades"></nav>
-        </aside>
-
-        <section class="lesson-panel" aria-live="polite">
-          <div id="lesson-content"></div>
+        <section class="wrap quick-start" aria-label="Accesos rápidos">
+          <div class="section-heading">
+            <div><p class="eyebrow">EMPIEZA POR AQUÍ</p><h2>Elige un recorrido</h2></div>
+            <p class="source-note">Dos libros, dos rutas y un paso cada vez.</p>
+          </div>
+          <div class="quick-grid">
+            <button class="quick-card quick-card-book" data-open-library="book" type="button">
+              <span class="quick-number">01</span><span><strong>Student’s Book</strong><small>Reading · Listening · True / False · Speaking</small></span><span class="quick-arrow" aria-hidden="true">→</span>
+            </button>
+            <button class="quick-card quick-card-workbook" data-open-library="workbook" type="button">
+              <span class="quick-number">02</span><span><strong>Workbook</strong><small>Vocabulary · Grammar · Quick quiz · Writing</small></span><span class="quick-arrow" aria-hidden="true">→</span>
+            </button>
+          </div>
         </section>
+      </section>
+
+      <section class="page-view" data-view-panel="library" aria-label="Material de estudio">
+        <section class="wrap library-switcher" aria-label="Elegir libro">
+          <div class="section-heading">
+            <div><p class="eyebrow">DOS RECORRIDOS · SIN MEZCLAR</p><h2>Elige tu material</h2></div>
+            <p class="source-note">Cada reto lleva su referencia de libro y páginas.</p>
+          </div>
+          <div class="book-tabs" role="tablist" aria-label="Libros">
+            <button class="book-tab is-active" data-library="book" role="tab" aria-selected="true" type="button"><span class="tab-number">01</span><span><strong>Student’s Book</strong><small>Reading · Listening · Speaking</small></span><span class="tab-arrow">↗</span></button>
+            <button class="book-tab" data-library="workbook" role="tab" aria-selected="false" type="button"><span class="tab-number">02</span><span><strong>Workbook</strong><small>Vocabulary · Grammar · Writing</small></span><span class="tab-arrow">↗</span></button>
+          </div>
+        </section>
+
+        <section class="wrap workspace-grid">
+          <aside class="unit-sidebar" aria-label="Unidades">
+            <div class="sidebar-header"><div><p class="eyebrow">ROADMAP</p><h2 id="sidebar-title">Student’s Book</h2></div><span class="unit-count">20</span></div>
+            <div class="progress-bar"><span id="overall-progress"></span></div>
+            <p class="progress-caption"><span id="progress-caption">0 de 20 unidades iniciadas</span><span>local</span></p>
+            <nav id="unit-list" class="unit-list" aria-label="Lista de unidades"></nav>
+          </aside>
+
+          <section class="lesson-panel" aria-live="polite">
+            <div id="lesson-content"></div>
+          </section>
+        </section>
+      </section>
+
+      <section class="page-view" data-view-panel="progress" aria-labelledby="progress-title">
+        <div class="wrap secondary-page">
+          <div class="page-heading"><p class="eyebrow">TU RITMO</p><h2 id="progress-title">Mi progreso</h2><p>Consulta tus unidades completadas en cada libro. El progreso se guarda solo en este navegador.</p></div>
+          <div id="progress-content"></div>
+        </div>
+      </section>
+
+      <section class="page-view" data-view-panel="help" aria-labelledby="help-title">
+        <div class="wrap secondary-page help-page">
+          <div class="page-heading"><p class="eyebrow">GUÍA RÁPIDA</p><h2 id="help-title">Cómo usarla</h2><p>La web está pensada para avanzar poco a poco y volver a intentarlo cuando lo necesites.</p></div>
+          <div class="help-grid">
+            <article class="help-card"><span class="help-step">01</span><h3>Elige una pestaña</h3><p>Usa Student’s Book para practicar lectura, escucha y expresión oral. Usa Workbook para vocabulario, gramática y escritura.</p></article>
+            <article class="help-card"><span class="help-step">02</span><h3>Escoge una unidad</h3><p>En cada libro las 20 unidades aparecen en orden. Cada una muestra sus temas y las páginas de referencia.</p></article>
+            <article class="help-card"><span class="help-step">03</span><h3>Completa los retos</h3><p>Responde, ordena, une, escucha o escribe. Puedes repetir una actividad todas las veces que quieras.</p></article>
+            <article class="help-card"><span class="help-step">04</span><h3>Guarda tu avance</h3><p>Marca una unidad como completada y revisa el resumen en Mi progreso. No hace falta crear una cuenta.</p></article>
+          </div>
+          <div class="help-note"><strong>Sobre Listening:</strong> la actividad utiliza la lectura en voz alta del navegador para practicar el texto de la unidad; no sustituye al audio original del libro.</div>
+        </div>
       </section>
     </main>
 

@@ -242,6 +242,7 @@ const units = [
 ];
 
 const state = {
+  view: localStorage.getItem("oel-view") || "home",
   library: localStorage.getItem("oel-library") || "book",
   unitId: Number(localStorage.getItem("oel-unit") || 1),
   activityIndex: Number(localStorage.getItem("oel-activity") || 0),
@@ -258,6 +259,7 @@ const progressKey = (kind = state.library, id = state.unitId) => `${kind}-${id}`
 const isComplete = (kind = state.library, id = state.unitId) => Boolean(state.progress[progressKey(kind, id)]);
 
 function saveState() {
+  localStorage.setItem("oel-view", state.view);
   localStorage.setItem("oel-library", state.library);
   localStorage.setItem("oel-unit", String(state.unitId));
   localStorage.setItem("oel-activity", String(state.activityIndex));
@@ -306,6 +308,49 @@ function activitiesFor(unit) {
   return state.library === "book" ? bookActivities : workbookActivities;
 }
 
+function setView(view) {
+  const allowed = ["home", "library", "progress", "help"];
+  state.view = allowed.includes(view) ? view : "home";
+  localStorage.setItem("oel-view", state.view);
+  document.querySelectorAll("[data-view-panel]").forEach((panel) => {
+    panel.classList.toggle("is-visible", panel.dataset.viewPanel === state.view);
+  });
+  document.querySelectorAll(".nav-tab").forEach((tab) => {
+    const active = tab.dataset.view === state.view && (!tab.dataset.libraryNav || tab.dataset.libraryNav === state.library);
+    tab.classList.toggle("is-active", active);
+    tab.setAttribute("aria-selected", String(active));
+  });
+  if (state.view === "progress") renderProgress();
+}
+
+function openLibrary(kind, id = state.unitId) {
+  state.library = kind;
+  state.unitId = Number(id);
+  state.activityIndex = 0;
+  state.match = { selectedTerm: null, matched: [], feedback: null };
+  state.order = [];
+  saveState();
+  render();
+  setView("library");
+}
+
+function renderProgress() {
+  const host = $("#progress-content");
+  if (!host) return;
+  const card = (kind, title, subtitle) => {
+    const done = units.filter((unit) => isComplete(kind, unit.id)).length;
+    const percentage = Math.round(done / units.length * 100);
+    return `<article class="progress-card">
+      <div class="progress-card-head"><div><h3>${title}</h3><p>${subtitle}</p></div><strong>${percentage}%</strong></div>
+      <div class="progress-meter" aria-label="${percentage}% completado"><span style="width:${percentage}%"></span></div>
+      <div class="progress-summary"><span>${done} de ${units.length} unidades completadas</span><strong>${done ? "Sigue así" : "Aún por empezar"}</strong></div>
+      <div class="progress-unit-grid">${units.map((unit) => `<button class="progress-unit ${isComplete(kind, unit.id) ? "is-complete" : ""}" data-progress-library="${kind}" data-progress-unit="${unit.id}" type="button"><span class="progress-unit-number">${String(unit.id).padStart(2, "0")}</span><span class="progress-unit-title">${esc(unit.title)}</span><span class="progress-unit-mark">${isComplete(kind, unit.id) ? "✓" : "→"}</span></button>`).join("")}</div>
+    </article>`;
+  };
+  host.innerHTML = `<div class="progress-overview">${card("book", "Student’s Book", "Reading, listening, True / False, Sentence Lab y Speaking")}${card("workbook", "Workbook", "Match game, completar, Quick quiz, Grammar order y Writing")}</div>`;
+  host.querySelectorAll("[data-progress-library]").forEach((button) => button.addEventListener("click", () => openLibrary(button.dataset.progressLibrary, button.dataset.progressUnit)));
+}
+
 function renderUnitList() {
   const list = $("#unit-list");
   list.innerHTML = units.map((unit) => `
@@ -330,6 +375,11 @@ function renderHeader() {
   document.querySelectorAll(".book-tab").forEach((tab) => {
     const active = tab.dataset.library === state.library;
     tab.classList.toggle("is-active", active); tab.setAttribute("aria-selected", String(active));
+  });
+  document.querySelectorAll(".nav-tab").forEach((tab) => {
+    const active = tab.dataset.view === state.view && (!tab.dataset.libraryNav || tab.dataset.libraryNav === state.library);
+    tab.classList.toggle("is-active", active);
+    tab.setAttribute("aria-selected", String(active));
   });
 }
 
@@ -413,11 +463,18 @@ function renderActivity(unit, activity) {
   }
 }
 
-document.querySelectorAll(".book-tab").forEach((tab) => tab.addEventListener("click", () => { state.library = tab.dataset.library; state.activityIndex = 0; state.match = { selectedTerm: null, matched: [], feedback: null }; state.order = []; saveState(); render(); }));
-$("#continue-button").addEventListener("click", () => { document.querySelector(".workspace-grid").scrollIntoView({ behavior: "smooth", block: "start" }); });
-$("#random-button").addEventListener("click", () => { state.unitId = units[Math.floor(Math.random() * units.length)].id; state.activityIndex = 0; state.match = { selectedTerm: null, matched: [], feedback: null }; state.order = []; saveState(); render(); document.querySelector(".workspace-grid").scrollIntoView({ behavior: "smooth", block: "start" }); });
+document.querySelectorAll(".nav-tab").forEach((tab) => tab.addEventListener("click", () => {
+  if (tab.dataset.libraryNav) openLibrary(tab.dataset.libraryNav);
+  else { setView(tab.dataset.view); window.scrollTo({ top: 0, behavior: "smooth" }); }
+}));
+document.querySelectorAll(".book-tab").forEach((tab) => tab.addEventListener("click", () => openLibrary(tab.dataset.library)));
+document.querySelectorAll("[data-open-library]").forEach((button) => button.addEventListener("click", () => openLibrary(button.dataset.openLibrary)));
+$(".brand").addEventListener("click", (event) => { event.preventDefault(); setView("home"); window.scrollTo({ top: 0, behavior: "smooth" }); });
+$("#continue-button").addEventListener("click", () => { setView("library"); document.querySelector(".workspace-grid").scrollIntoView({ behavior: "smooth", block: "start" }); });
+$("#random-button").addEventListener("click", () => { state.unitId = units[Math.floor(Math.random() * units.length)].id; state.activityIndex = 0; state.match = { selectedTerm: null, matched: [], feedback: null }; state.order = []; saveState(); render(); setView("library"); document.querySelector(".workspace-grid").scrollIntoView({ behavior: "smooth", block: "start" }); });
 $("#contrast-toggle").addEventListener("click", () => { state.contrast = !state.contrast; document.body.classList.toggle("high-contrast", state.contrast); localStorage.setItem("oel-contrast", state.contrast ? "1" : "0"); });
 $("#reset-button").addEventListener("click", () => { if (!window.confirm("¿Reiniciar el progreso de las 20 unidades en este navegador?")) return; state.progress = {}; localStorage.removeItem("oel-progress"); render(); showToast("Progreso reiniciado."); });
 
 document.body.classList.toggle("high-contrast", state.contrast);
 render();
+setView(state.view);
