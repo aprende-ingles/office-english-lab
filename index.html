@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#112a46">
+  <meta name="description" content="English for Business Administration & Finance: interactive practice based on the Student's Book and Workbook.">
+  <title>Office English Lab | Administración y Finanzas</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <a class="brand" href="#top" aria-label="Office English Lab, inicio">
+        <span class="brand-mark" aria-hidden="true">↗</span>
+        <span>
+          <strong>Office English Lab</strong>
+          <small>Administración &amp; Finanzas · 1º Superior</small>
+        </span>
+      </a>
+      <div class="top-actions">
+        <span class="streak" id="streak-badge">0 días de práctica</span>
+        <button class="icon-button" id="contrast-toggle" type="button" aria-label="Cambiar contraste" title="Cambiar contraste">◐</button>
+      </div>
+    </header>
+
+    <main id="top">
+      <section class="hero wrap">
+        <div class="hero-copy">
+          <p class="eyebrow">TECHNICAL ENGLISH · LEARN BY DOING</p>
+          <h1>Tu inglés de oficina,<br><em>en movimiento.</em></h1>
+          <p class="hero-lead">Practica el vocabulario, las situaciones y las destrezas del material de clase con retos cortos: lee, escucha, decide, ordena, escribe y vuelve a intentarlo.</p>
+          <div class="hero-actions">
+            <button class="primary-button" id="continue-button" type="button">Continuar práctica <span aria-hidden="true">→</span></button>
+            <button class="text-button" id="random-button" type="button">Sorpréndeme con una unidad</button>
+          </div>
+        </div>
+        <div class="hero-card" aria-label="Resumen del curso">
+          <div class="hero-card-top"><span class="live-dot"></span> LAB MODE <span class="hero-card-note">sin registros</span></div>
+          <div class="orbital orbital-one"></div><div class="orbital orbital-two"></div>
+          <div class="hero-stat"><strong>20</strong><span>unidades</span></div>
+          <div class="hero-stat"><strong id="completed-stat">0%</strong><span>progreso local</span></div>
+          <div class="hero-card-footer">Student’s Book + Workbook</div>
+        </div>
+      </section>
+
+      <section class="wrap library-switcher" aria-label="Elegir libro">
+        <div class="section-heading">
+          <div><p class="eyebrow">DOS RECORRIDOS · SIN MEZCLAR</p><h2>Elige tu material</h2></div>
+          <p class="source-note">Cada reto lleva su referencia de libro y páginas.</p>
+        </div>
+        <div class="book-tabs" role="tablist" aria-label="Libros">
+          <button class="book-tab is-active" data-library="book" role="tab" aria-selected="true" type="button"><span class="tab-number">01</span><span><strong>Student’s Book</strong><small>Reading · Listening · Speaking</small></span><span class="tab-arrow">↗</span></button>
+          <button class="book-tab" data-library="workbook" role="tab" aria-selected="false" type="button"><span class="tab-number">02</span><span><strong>Workbook</strong><small>Vocabulary · Grammar · Writing</small></span><span class="tab-arrow">↗</span></button>
+        </div>
+      </section>
+
+      <section class="wrap workspace-grid">
+        <aside class="unit-sidebar" aria-label="Unidades">
+          <div class="sidebar-header"><div><p class="eyebrow">ROADMAP</p><h2 id="sidebar-title">Student’s Book</h2></div><span class="unit-count">20</span></div>
+          <div class="progress-bar"><span id="overall-progress"></span></div>
+          <p class="progress-caption"><span id="progress-caption">0 de 20 unidades iniciadas</span><span>local</span></p>
+          <nav id="unit-list" class="unit-list" aria-label="Lista de unidades"></nav>
+        </aside>
+
+        <section class="lesson-panel" aria-live="polite">
+          <div id="lesson-content"></div>
+        </section>
+      </section>
+    </main>
+
+    <footer class="footer wrap">
+      <div><strong>Office English Lab</strong><span>Material de práctica basado en los dos PDF facilitados.</span></div>
+      <div class="footer-right"><span>Sin cuentas · progreso en este navegador</span><button class="text-button" id="reset-button" type="button">Reiniciar progreso</button></div>
+    </footer>
+  </div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="app.js" defer></script>
+</body>
+</html>
